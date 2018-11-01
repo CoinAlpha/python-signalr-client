@@ -9,7 +9,8 @@
 from ._exceptions import ConnectionClosed
 from ._parameters import WebSocketParameters
 from ._queue_events import InvokeEvent, CloseEvent
-
+from async_timeout import timeout
+import logging
 # -----------------------------------
 # External Imports
 try:
@@ -28,6 +29,14 @@ except ModuleNotFoundError:
 
 
 class Transport:
+    _transport_logger = None
+
+    @classmethod
+    def logger(cls):
+        if cls._transport_logger is None:
+            cls._transport_logger = logging.getLogger(__name__)
+        return cls._transport_logger
+
     def __init__(self, connection):
         self._connection = connection
         self._ws_params = None
@@ -82,11 +91,15 @@ class Transport:
             task.cancel()
 
     async def _consumer_handler(self, ws):
-        while True:
-            message = await ws.recv()
-            if len(message) > 0:
-                data = loads(message)
-                await self._connection.received.fire(**data)
+        try:
+            while True:
+                message = await ws.recv()
+                self._connection.msg_queue.put_nowait(message)
+                if len(message) > 0:
+                    data = loads(message)
+                    await self._connection.received.fire(**data)
+        except:
+            raise
 
     async def _producer_handler(self, ws):
         while True:

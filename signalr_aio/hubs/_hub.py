@@ -3,7 +3,7 @@
 
 # signalr_aio/hubs/_hub.py
 # Stanislav Lazarov
-
+import logging
 
 class Hub:
     def __init__(self, name, connection):
@@ -29,6 +29,14 @@ class HubServer:
 
 
 class HubClient(object):
+    _hc_logger = None
+
+    @classmethod
+    def logger(cls):
+        if cls._hc_logger is None:
+            cls._hc_logger = logging.getLogger(__name__)
+        return cls._hc_logger
+
     def __init__(self, name, connection):
         self.name = name
         self.__handlers = {}
@@ -40,7 +48,12 @@ class HubClient(object):
                 if hub.lower() == self.name.lower():
                     method = inner_data['M']
                     message = inner_data['A']
-                    await self.__handlers[method](message)
+                    if method in self.__handlers:
+                        try:
+                            await self.__handlers[method](message)
+                        except:
+                            self.logger().info("Error invoking hub handler")
+                            return
 
         connection.received += handle
 

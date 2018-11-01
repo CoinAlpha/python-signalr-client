@@ -3,15 +3,22 @@
 
 # signalr_aio/_connection.py
 # Stanislav Lazarov
-
+import asyncio
 
 from .events import EventHook
 from .hubs import Hub
 from .transports import Transport
-
+import logging
 
 class Connection(object):
     protocol_version = '1.5'
+    _connection_logger = None
+
+    @classmethod
+    def logger(cls):
+        if cls._connection_logger is None:
+            cls._connection_logger = logging.getLogger(__name__)
+        return cls._connection_logger
 
     def __init__(self, url, session=None):
         self.url = url
@@ -23,9 +30,11 @@ class Connection(object):
         self.error = EventHook()
         self.__transport = Transport(self)
         self.started = False
+        self.msg_queue = asyncio.Queue()
 
         async def handle_error(**data):
             error = data["E"] if "E" in data else None
+            self.logger().error(f"Signalr connection error: {error}")
             if error is not None:
                 await self.error.fire(error)
 
@@ -34,6 +43,14 @@ class Connection(object):
     def start(self):
         self.hub = [hub_name for hub_name in self.__hubs][0]
         self.__transport.start()
+
+    async def recv(self):
+        self.msg_queue = asyncio.Queue()
+        try:
+            while True:
+                yield await self.msg_queue.get()
+        finally:
+            pass
 
     def register_hub(self, name):
         if name not in self.__hubs:
