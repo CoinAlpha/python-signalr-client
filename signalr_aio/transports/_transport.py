@@ -95,6 +95,7 @@ class Transport:
             while True:
                 message = await ws.recv()
                 self._connection.msg_queue.put_nowait(message)
+                self.logger().debug(message)
                 if len(message) > 0:
                     data = loads(message)
                     await self._connection.received.fire(**data)

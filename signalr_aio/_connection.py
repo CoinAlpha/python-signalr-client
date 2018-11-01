@@ -33,7 +33,7 @@ class Connection(object):
         self.msg_queue = asyncio.Queue()
 
         async def handle_error(**data):
-            error = data["E"] if "E" in data else None
+            error = data.get("E", None)
             if error is not None:
                 self.logger().error(f"Signalr connection error: {error}")
                 await self.error.fire(error)
@@ -41,16 +41,9 @@ class Connection(object):
         self.received += handle_error
 
     def start(self):
+        self.msg_queue = asyncio.Queue()
         self.hub = [hub_name for hub_name in self.__hubs][0]
         self.__transport.start()
-
-    async def recv(self):
-        self.msg_queue = asyncio.Queue()
-        try:
-            while True:
-                yield await self.msg_queue.get()
-        finally:
-            pass
 
     def register_hub(self, name):
         if name not in self.__hubs:
