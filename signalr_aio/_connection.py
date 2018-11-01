@@ -34,8 +34,8 @@ class Connection(object):
 
         async def handle_error(**data):
             error = data["E"] if "E" in data else None
-            self.logger().error(f"Signalr connection error: {error}")
             if error is not None:
+                self.logger().error(f"Signalr connection error: {error}")
                 await self.error.fire(error)
 
         self.received += handle_error
